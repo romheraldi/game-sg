@@ -1,7 +1,32 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { driver, ROOM_ID } from '../lib/db'
+import { driver, onDbError, ROOM_ID } from '../lib/db'
 import { useTvMode } from '../lib/useRoom'
+
+/** Peringatan kalau database menolak simpanan — paling sering karena Rules belum dipasang. */
+function DbErrorBanner() {
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => onDbError(setError), [])
+
+  if (!error) return null
+  const denied = /permission|denied/i.test(error)
+
+  return (
+    <div className="db-error">
+      <strong>⚠️ Perubahan tidak tersimpan.</strong>{' '}
+      {denied ? (
+        <>
+          Firebase menolak akses ke ruangan <code>{ROOM_ID}</code>. Buka Firebase Console →
+          Realtime Database → tab <strong>Rules</strong>, pasang aturan dari file{' '}
+          <code>database.rules.json</code>, lalu klik Publish. Setelah itu muat ulang halaman ini.
+        </>
+      ) : (
+        <>Sambungan ke database bermasalah. Cek koneksi internet, lalu muat ulang halaman.</>
+      )}
+      <div className="db-error-detail">{error}</div>
+    </div>
+  )
+}
 
 type Props = {
   title: string
@@ -43,6 +68,8 @@ export function Shell({ title, subtitle, emoji, children, controls, back = true 
           </button>
         </div>
       </header>
+
+      <DbErrorBanner />
 
       <main className="shell-body">{children}</main>
 

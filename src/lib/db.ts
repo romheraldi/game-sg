@@ -8,6 +8,36 @@
 
 export type Unsubscribe = () => void
 
+/* ------------------------------------------------------------------ */
+/* Pelaporan kegagalan baca/tulis                                      */
+/* ------------------------------------------------------------------ */
+
+type ErrorListener = (message: string | null) => void
+
+const errorListeners = new Set<ErrorListener>()
+let lastError: string | null = null
+
+/** Dengarkan kegagalan menyimpan/membaca supaya bisa ditampilkan ke panitia. */
+export function onDbError(cb: ErrorListener): Unsubscribe {
+  errorListeners.add(cb)
+  cb(lastError)
+  return () => errorListeners.delete(cb)
+}
+
+function emitError(message: string | null) {
+  lastError = message
+  errorListeners.forEach((cb) => cb(message))
+}
+
+function reportError(err: unknown) {
+  emitError(err instanceof Error ? err.message : String(err))
+}
+
+/** Dipanggil setiap operasi berhasil supaya peringatan lama hilang sendiri. */
+function reportOk() {
+  if (lastError !== null) emitError(null)
+}
+
 export interface Driver {
   mode: 'firebase' | 'local'
   /** Dengarkan seluruh isi ruangan. */
@@ -153,11 +183,26 @@ function createFirebaseDriver(room: string): Driver {
       let stop: Unsubscribe | null = null
       let cancelled = false
       ;(async () => {
-        const { onValue } = await import('firebase/database')
-        const { root } = await rootPromise
-        if (cancelled) return
-        const off = onValue(root, (snap) => cb(snap.val() ?? {}))
-        stop = off
+        try {
+          const { onValue } = await import('firebase/database')
+          const { root } = await rootPromise
+          if (cancelled) return
+          stop = onValue(
+            root,
+            (snap) => {
+              reportOk()
+              cb(snap.val() ?? {})
+            },
+            (err) => {
+              reportError(err)
+              // Tetap kirim data kosong supaya halaman tidak menggantung di "Memuat…".
+              cb({})
+            },
+          )
+        } catch (err) {
+          reportError(err)
+          cb({})
+        }
       })()
       return () => {
         cancelled = true
@@ -165,19 +210,29 @@ function createFirebaseDriver(room: string): Driver {
       }
     },
     async set(path, value) {
-      const { set } = await import('firebase/database')
-      const { db, root, ref } = await rootPromise
-      const target = path ? ref(db, `rooms/${room}/${path}`) : root
-      await set(target, value ?? null)
+      try {
+        const { set } = await import('firebase/database')
+        const { db, root, ref } = await rootPromise
+        const target = path ? ref(db, `rooms/${room}/${path}`) : root
+        await set(target, value ?? null)
+        reportOk()
+      } catch (err) {
+        reportError(err)
+      }
     },
     async update(updates) {
-      const { update } = await import('firebase/database')
-      const { root } = await rootPromise
-      const clean: Record<string, unknown> = {}
-      for (const [path, value] of Object.entries(updates)) {
-        clean[path] = value === undefined ? null : value
+      try {
+        const { update } = await import('firebase/database')
+        const { root } = await rootPromise
+        const clean: Record<string, unknown> = {}
+        for (const [path, value] of Object.entries(updates)) {
+          clean[path] = value === undefined ? null : value
+        }
+        await update(root, clean)
+        reportOk()
+      } catch (err) {
+        reportError(err)
       }
-      await update(root, clean)
     },
   }
 }
