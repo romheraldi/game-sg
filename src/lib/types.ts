@@ -6,6 +6,12 @@ export type Group = {
 
 /** Satu kursi di dalam sebuah match. */
 export type Slot = {
+  /**
+   * Nomor urut slot. Wajib ada dan tidak pernah null: Firebase membuang nilai null
+   * dan menghapus node yang jadi kosong, sehingga slot yang masih kosong akan lenyap
+   * kalau seluruh isinya null.
+   */
+  i?: number
   /** Peserta yang di-assign manual oleh panitia. */
   pick?: string | null
   /** Kalau diisi, peserta = pemenang match dengan id ini. */

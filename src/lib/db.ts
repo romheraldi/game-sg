@@ -110,6 +110,21 @@ function setIn(obj: any, path: string[], value: unknown): any {
 
 const splitPath = (path: string) => path.split('/').filter(Boolean)
 
+/**
+ * Tiru perilaku Firebase: nilai null dibuang, dan node yang jadi tanpa isi ikut hilang.
+ * Dipakai di driver lokal supaya latihan tanpa Firebase berperilaku sama dengan aslinya.
+ */
+function stripNulls(value: unknown): unknown {
+  if (value === null || value === undefined) return undefined
+  if (Array.isArray(value) || typeof value !== 'object') return value
+  const out: Record<string, unknown> = {}
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    const cleaned = stripNulls(item)
+    if (cleaned !== undefined) out[key] = cleaned
+  }
+  return Object.keys(out).length ? out : undefined
+}
+
 function createLocalDriver(room: string): Driver {
   const storageKey = `game17an:${room}`
   const listeners = new Set<(value: any) => void>()
@@ -150,12 +165,12 @@ function createLocalDriver(room: string): Driver {
       return () => listeners.delete(cb)
     },
     async set(path, value) {
-      write(setIn(read(), splitPath(path), value))
+      write(setIn(read(), splitPath(path), stripNulls(value) ?? null))
     },
     async update(updates) {
       let next = read()
       for (const [path, value] of Object.entries(updates)) {
-        next = setIn(next, splitPath(path), value)
+        next = setIn(next, splitPath(path), stripNulls(value) ?? null)
       }
       write(next)
     },

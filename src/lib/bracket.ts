@@ -1,4 +1,4 @@
-import type { Bracket, BracketMode, Match, Round, RoomState } from './types'
+import type { Bracket, BracketMode, Match, Round, RoomState, Slot } from './types'
 
 /** Firebase mengembalikan objek berkunci angka sebagai array. Samakan jadi array. */
 export function toArray<T>(value: Record<string, T> | T[] | undefined | null): T[] {
@@ -66,15 +66,17 @@ export function generateBracket(
     let cursor = 0
 
     slotCounts.forEach((slotCount, matchIndex) => {
-      const slots: Record<string, { pick: string | null; src: string | null }> = {}
+      const slots: Record<string, Slot> = {}
       for (let s = 0; s < slotCount; s++) {
+        // `i` selalu diisi supaya slot kosong tidak ikut terhapus di Firebase.
         if (roundIndex === 0) {
           slots[s] = {
+            i: s,
             pick: mode === 'random' ? seeded[cursor] ?? null : null,
             src: null,
           }
         } else {
-          slots[s] = { pick: null, src: `r${roundIndex - 1}m${cursor}` }
+          slots[s] = { i: s, pick: null, src: `r${roundIndex - 1}m${cursor}` }
         }
         cursor++
       }
@@ -135,7 +137,14 @@ export function readRounds(bracket: Bracket | null | undefined): ResolvedRound[]
     const matches = toArray<Match>(round?.matches as Record<string, Match>).map(
       (match, matchIndex) => {
         const rawSlots = match?.slots ?? {}
-        const slotKeys = Object.keys(rawSlots).sort((a, b) => Number(a) - Number(b))
+        let slotKeys = Object.keys(rawSlots).sort((a, b) => Number(a) - Number(b))
+
+        // Bagan lama buatan versi bermasalah kehilangan slot kosongnya di Firebase.
+        // Tampilkan kembali slot sejumlah ukuran match supaya tetap bisa diisi panitia
+        // tanpa harus membuat ulang bagannya.
+        if (slotKeys.length === 0 && roundIndex === 0) {
+          slotKeys = Array.from({ length: Math.max(bracket.matchSize ?? 2, 1) }, (_, i) => String(i))
+        }
         const slots: ResolvedSlot[] = slotKeys.map((key) => {
           const slot = (rawSlots as Record<string, { pick?: string | null; src?: string | null }>)[key]
           const fromSrc = slot?.src ? winners.get(slot.src) ?? null : null

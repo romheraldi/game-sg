@@ -256,9 +256,10 @@ export async function addSlot(
   matchIndex: number,
   nextKey: number,
 ) {
+  // `i` wajib ada, kalau tidak slot kosong ini langsung hilang lagi di Firebase.
   await driver.set(
     `games/${gameId}/bracket/rounds/${roundIndex}/matches/${matchIndex}/slots/${nextKey}`,
-    { pick: null, src: null },
+    { i: nextKey },
   )
 }
 
