@@ -1,21 +1,25 @@
 import { useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { Shell, EmptyState } from '../components/Shell'
 import { useRoom } from '../lib/useRoom'
 import {
-  fashionOrder,
-  markFashionDone,
-  moveFashionEntry,
-  resetFashion,
-  setFashionIndex,
-  shuffleFashionOrder,
+  markUrutanDone,
+  moveUrutanEntry,
+  resetUrutan,
+  setUrutanIndex,
+  shuffleUrutan,
+  urutanOrder,
 } from '../lib/actions'
-import { Link } from 'react-router-dom'
+import type { Game } from '../lib/types'
 
-export default function FashionShowPage() {
+export default function UrutanPage({ game }: { game: Game }) {
   const { state } = useRoom()
-  const order = fashionOrder(state)
-  const currentIndex = Math.min(state?.fashion?.currentIndex ?? 0, Math.max(order.length - 1, 0))
-  const done = state?.fashion?.done ?? {}
+  const order = urutanOrder(state, game.id)
+  const currentIndex = Math.min(
+    game.urutan?.currentIndex ?? 0,
+    Math.max(order.length - 1, 0),
+  )
+  const done = game.urutan?.done ?? {}
 
   const nameOf = (id: string) => state?.groups?.[id]?.name ?? id
   const currentId = order[currentIndex]
@@ -24,7 +28,7 @@ export default function FashionShowPage() {
   const go = (delta: number) => {
     const next = currentIndex + delta
     if (next < 0 || next >= order.length) return
-    setFashionIndex(next)
+    setUrutanIndex(game.id, next)
   }
 
   // Panah kiri/kanan biar gampang dikendalikan dari remote presenter.
@@ -41,13 +45,13 @@ export default function FashionShowPage() {
 
   if (!order.length) {
     return (
-      <Shell title="Fashion Show" emoji="👗">
+      <Shell title={game.name} emoji={game.emoji}>
         <EmptyState
           title="Belum ada kelompok"
           hint="Daftarkan kelompoknya dulu di halaman setting."
           action={
             <Link className="btn primary" to="/setup">
-              Ke Setting Kelompok
+              Ke Setting Acara
             </Link>
           }
         />
@@ -57,9 +61,9 @@ export default function FashionShowPage() {
 
   return (
     <Shell
-      title="Fashion Show"
+      title={game.name}
       subtitle={`Urutan tampil · ${currentIndex + 1} dari ${order.length}`}
-      emoji="👗"
+      emoji={game.emoji}
       controls={
         <>
           <div className="row gap wrap">
@@ -69,27 +73,34 @@ export default function FashionShowPage() {
             <button
               className="btn primary"
               onClick={() => {
-                if (currentId) markFashionDone(currentId, true)
+                if (currentId) markUrutanDone(game.id, currentId, true)
                 go(1)
               }}
               disabled={currentIndex >= order.length - 1}
             >
               Selesai → Panggil Berikutnya
             </button>
-            <button className="btn" onClick={() => go(1)} disabled={currentIndex >= order.length - 1}>
+            <button
+              className="btn"
+              onClick={() => go(1)}
+              disabled={currentIndex >= order.length - 1}
+            >
               Lewati →
             </button>
             {currentId && (
-              <button className="btn ghost" onClick={() => markFashionDone(currentId, !done[currentId])}>
+              <button
+                className="btn ghost"
+                onClick={() => markUrutanDone(game.id, currentId, !done[currentId])}
+              >
                 {done[currentId] ? 'Batalkan tanda selesai' : 'Tandai sudah tampil'}
               </button>
             )}
           </div>
           <div className="row gap wrap">
-            <button className="btn ghost small" onClick={() => shuffleFashionOrder(state)}>
+            <button className="btn ghost small" onClick={() => shuffleUrutan(state, game.id)}>
               🔀 Acak Urutan
             </button>
-            <button className="btn ghost small" onClick={() => resetFashion()}>
+            <button className="btn ghost small" onClick={() => resetUrutan(game.id)}>
               Mulai Ulang dari Kelompok Pertama
             </button>
             <span className="hint">Tips: tombol panah ←/→ juga bisa dipakai.</span>
@@ -122,13 +133,19 @@ export default function FashionShowPage() {
               {index === currentIndex ? 'TAMPIL' : done[id] ? 'Selesai' : ''}
             </span>
             <span className="order-actions admin-only">
-              <button className="btn ghost tiny" onClick={() => moveFashionEntry(state, id, -1)}>
+              <button
+                className="btn ghost tiny"
+                onClick={() => moveUrutanEntry(state, game.id, id, -1)}
+              >
                 ↑
               </button>
-              <button className="btn ghost tiny" onClick={() => moveFashionEntry(state, id, 1)}>
+              <button
+                className="btn ghost tiny"
+                onClick={() => moveUrutanEntry(state, game.id, id, 1)}
+              >
                 ↓
               </button>
-              <button className="btn ghost tiny" onClick={() => setFashionIndex(index)}>
+              <button className="btn ghost tiny" onClick={() => setUrutanIndex(game.id, index)}>
                 Panggil
               </button>
             </span>

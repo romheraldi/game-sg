@@ -1,14 +1,14 @@
 import { driver } from './db'
 import { generateBracket, shuffle, sortedGroups, toArray } from './bracket'
-import type { BracketMode, Group, RoomState } from './types'
-import type { GameConfig } from './games'
+import { GAME_TEMPLATES, listGames, uniqueGameId } from './games'
+import type { BracketMode, Game, GameType, RoomState } from './types'
 
 export const DEFAULT_GROUP_COUNT = 9
 
 const groupId = (index: number) => `k${index + 1}`
 
 export async function seedGroups(count = DEFAULT_GROUP_COUNT) {
-  const groups: Record<string, Group> = {}
+  const groups: Record<string, { id: string; name: string; order: number }> = {}
   for (let i = 0; i < count; i++) {
     groups[groupId(i)] = { id: groupId(i), name: `Kelompok ${i + 1}`, order: i }
   }
@@ -38,46 +38,146 @@ export async function removeGroup(id: string) {
   await driver.set(`groups/${id}`, null)
 }
 
-/* ------------------------------- Fashion show ------------------------------ */
+/* ------------------------------ Daftar lomba ------------------------------ */
 
-export function fashionOrder(state: RoomState | null): string[] {
-  const stored = toArray<string>(state?.fashion?.order)
+export type NewGameInput = {
+  name: string
+  emoji?: string
+  type: GameType
+  matchSize?: number
+  mode?: BracketMode
+}
+
+export async function createGame(state: RoomState | null, input: NewGameInput): Promise<string> {
+  const id = uniqueGameId(state, input.name)
+  const order = listGames(state).length
+  const game: Game = {
+    id,
+    name: input.name.trim(),
+    emoji: input.emoji || (input.type === 'urutan' ? '🎤' : '🏆'),
+    type: input.type,
+    order,
+  }
+  if (input.type === 'bracket') {
+    game.matchSize = input.matchSize ?? 2
+    game.mode = input.mode ?? 'random'
+  }
+  await driver.set(`games/${id}`, game)
+  return id
+}
+
+export async function updateGame(gameId: string, patch: Partial<Game>) {
+  const updates: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(patch)) {
+    updates[`games/${gameId}/${key}`] = value ?? null
+  }
+  await driver.update(updates)
+}
+
+export async function removeGame(gameId: string) {
+  await driver.set(`games/${gameId}`, null)
+}
+
+export async function moveGame(state: RoomState | null, gameId: string, delta: number) {
+  const games = listGames(state)
+  const from = games.findIndex((g) => g.id === gameId)
+  const to = from + delta
+  if (from < 0 || to < 0 || to >= games.length) return
+  const updates: Record<string, unknown> = {}
+  ;[games[from], games[to]] = [games[to], games[from]]
+  games.forEach((game, index) => {
+    updates[`games/${game.id}/order`] = index
+  })
+  await driver.update(updates)
+}
+
+/** Isi cepat dengan susunan acara 17-an bawaan. */
+export async function seedDefaultGames(state: RoomState | null) {
+  const updates: Record<string, unknown> = {}
+  GAME_TEMPLATES.forEach((template, index) => {
+    const game: Game = {
+      id: template.id,
+      name: template.name,
+      emoji: template.emoji,
+      type: template.type,
+      order: index,
+    }
+    if (template.type === 'bracket') {
+      game.matchSize = template.matchSize ?? 2
+      game.mode = template.mode ?? 'random'
+      if (template.extras?.length) {
+        game.extras = Object.fromEntries(
+          template.extras.map((name, i) => {
+            const id = `x_${template.id}_${i}`
+            return [id, { id, name }]
+          }),
+        )
+      }
+    }
+    // Pertahankan data yang sudah ada supaya bagan yang jalan tidak hilang.
+    const existing = state?.games?.[template.id]
+    if (existing) {
+      updates[`games/${template.id}`] = { ...game, ...existing, name: existing.name || game.name }
+      return
+    }
+    // Pindahkan data fashion show dari versi lama yang menyimpannya di luar daftar lomba.
+    if (template.id === 'fashion-show' && state?.fashion) {
+      game.urutan = state.fashion
+      updates['fashion'] = null
+    }
+    updates[`games/${template.id}`] = game
+  })
+  await driver.update(updates)
+}
+
+/* -------------------------------- Urutan ---------------------------------- */
+
+export function urutanOrder(state: RoomState | null, gameId: string): string[] {
+  const stored = toArray<string>(state?.games?.[gameId]?.urutan?.order)
   const groups = sortedGroups(state).map((g) => g.id)
   const valid = stored.filter((id) => groups.includes(id))
   const missing = groups.filter((id) => !valid.includes(id))
   return [...valid, ...missing]
 }
 
-export async function setFashionOrder(order: string[]) {
-  await driver.set('fashion/order', order)
+export async function setUrutanOrder(gameId: string, order: string[]) {
+  await driver.set(`games/${gameId}/urutan/order`, order)
 }
 
-export async function shuffleFashionOrder(state: RoomState | null) {
-  await setFashionOrder(shuffle(fashionOrder(state)))
+export async function shuffleUrutan(state: RoomState | null, gameId: string) {
+  await setUrutanOrder(gameId, shuffle(urutanOrder(state, gameId)))
 }
 
-export async function moveFashionEntry(state: RoomState | null, id: string, delta: number) {
-  const order = fashionOrder(state)
+export async function moveUrutanEntry(
+  state: RoomState | null,
+  gameId: string,
+  id: string,
+  delta: number,
+) {
+  const order = urutanOrder(state, gameId)
   const from = order.indexOf(id)
   const to = from + delta
   if (from < 0 || to < 0 || to >= order.length) return
   ;[order[from], order[to]] = [order[to], order[from]]
-  await setFashionOrder(order)
+  await setUrutanOrder(gameId, order)
 }
 
-export async function setFashionIndex(index: number) {
-  await driver.set('fashion/currentIndex', Math.max(0, index))
+export async function setUrutanIndex(gameId: string, index: number) {
+  await driver.set(`games/${gameId}/urutan/currentIndex`, Math.max(0, index))
 }
 
-export async function markFashionDone(groupIdValue: string, done: boolean) {
-  await driver.set(`fashion/done/${groupIdValue}`, done ? true : null)
+export async function markUrutanDone(gameId: string, groupIdValue: string, done: boolean) {
+  await driver.set(`games/${gameId}/urutan/done/${groupIdValue}`, done ? true : null)
 }
 
-export async function resetFashion() {
-  await driver.update({ 'fashion/currentIndex': 0, 'fashion/done': null })
+export async function resetUrutan(gameId: string) {
+  await driver.update({
+    [`games/${gameId}/urutan/currentIndex`]: 0,
+    [`games/${gameId}/urutan/done`]: null,
+  })
 }
 
-/* ---------------------------------- Games --------------------------------- */
+/* --------------------------------- Bagan ---------------------------------- */
 
 /** Daftar peserta sebuah lomba; default-nya semua kelompok + peserta tambahan. */
 export function gameParticipants(state: RoomState | null, gameId: string): string[] {
@@ -91,21 +191,6 @@ export function gameParticipants(state: RoomState | null, gameId: string): strin
 
 export async function setGameParticipants(gameId: string, ids: string[]) {
   await driver.set(`games/${gameId}/participants`, ids)
-}
-
-export async function ensureExtras(game: GameConfig, state: RoomState | null) {
-  if (!state) return
-  if (state.games?.[game.id]?.extrasSeeded) return
-  if (!game.defaultExtras.length) return
-  const extras: Record<string, { id: string; name: string }> = {}
-  game.defaultExtras.forEach((name, i) => {
-    const id = `x_${game.id}_${i}`
-    extras[id] = { id, name }
-  })
-  await driver.update({
-    [`games/${game.id}/extras`]: extras,
-    [`games/${game.id}/extrasSeeded`]: true,
-  })
 }
 
 export async function addExtra(gameId: string, name: string) {
@@ -129,6 +214,8 @@ export async function createBracket(
   const bracket = generateBracket(participants, matchSize, mode)
   await driver.update({
     [`games/${gameId}/participants`]: participants,
+    [`games/${gameId}/matchSize`]: matchSize,
+    [`games/${gameId}/mode`]: mode,
     [`games/${gameId}/bracket`]: bracket,
     [`games/${gameId}/focus`]: null,
   })

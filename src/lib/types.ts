@@ -6,7 +6,7 @@ export type Group = {
 
 /** Satu kursi di dalam sebuah match. */
 export type Slot = {
-  /** Peserta yang di-assign manual (menang telak dari panitia). */
+  /** Peserta yang di-assign manual oleh panitia. */
   pick?: string | null
   /** Kalau diisi, peserta = pemenang match dengan id ini. */
   src?: string | null
@@ -32,19 +32,13 @@ export type Bracket = {
 
 export type BracketMode = 'random' | 'manual'
 
-export type GameState = {
-  /** id peserta: id kelompok, atau id peserta tambahan (mis. panitia). */
-  participants?: string[]
-  /** Peserta tambahan di luar daftar kelompok. */
-  extras?: Record<string, { id: string; name: string }>
-  /** Penanda bahwa peserta tambahan bawaan sudah pernah dibuat (biar tidak muncul lagi kalau dihapus). */
-  extrasSeeded?: boolean
-  /** Match yang lagi disorot di layar TV. */
-  focus?: string | null
-  bracket?: Bracket | null
-}
+/**
+ * `bracket` = lomba sistem gugur.
+ * `urutan`  = acara yang cuma butuh urutan tampil, mis. fashion show.
+ */
+export type GameType = 'bracket' | 'urutan'
 
-export type FashionState = {
+export type UrutanState = {
   /** Urutan tampil, isinya id kelompok. */
   order?: string[]
   currentIndex?: number
@@ -52,9 +46,34 @@ export type FashionState = {
   done?: Record<string, boolean>
 }
 
+export type Game = {
+  id: string
+  name: string
+  emoji?: string
+  type: GameType
+  /** Posisi di menu. */
+  order: number
+
+  /* --- khusus tipe bracket --- */
+  /** Jumlah kelompok yang tanding barengan dalam satu match. */
+  matchSize?: number
+  mode?: BracketMode
+  /** id peserta: id kelompok, atau id peserta tambahan (mis. panitia). */
+  participants?: string[]
+  /** Peserta tambahan di luar daftar kelompok. */
+  extras?: Record<string, { id: string; name: string }>
+  /** Match yang lagi disorot di layar TV. */
+  focus?: string | null
+  bracket?: Bracket | null
+
+  /* --- khusus tipe urutan --- */
+  urutan?: UrutanState
+}
+
 export type RoomState = {
   title?: string
   groups?: Record<string, Group>
-  fashion?: FashionState
-  games?: Record<string, GameState>
+  games?: Record<string, Game>
+  /** Data fashion show dari versi lama, dipindahkan otomatis saat lomba bawaan dibuat. */
+  fashion?: UrutanState
 }

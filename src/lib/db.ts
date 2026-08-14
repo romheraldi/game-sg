@@ -22,19 +22,40 @@ const env = import.meta.env
 
 export const ROOM_ID: string = env.VITE_ROOM_ID || '17an'
 
-const firebaseConfig = {
-  apiKey: env.VITE_FIREBASE_API_KEY,
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
-  databaseURL: env.VITE_FIREBASE_DATABASE_URL,
-  projectId: env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: env.VITE_FIREBASE_APP_ID,
+/**
+ * Konfigurasi bawaan project Firebase acara ini.
+ *
+ * Nilai-nilai ini memang ikut terkirim ke browser — konfigurasi web Firebase bukan rahasia,
+ * dan pengamanannya ada di Realtime Database Rules (lihat `database.rules.json`), bukan di
+ * penyembunyian kunci. Semuanya tetap bisa ditimpa lewat file `.env` kalau mau pakai project
+ * Firebase lain.
+ */
+const DEFAULT_FIREBASE = {
+  apiKey: 'AIzaSyDxzNQbes6g1AotOlM8-JIDE1uM82IDsl8',
+  authDomain: 'game-sg-580fd.firebaseapp.com',
+  databaseURL: 'https://game-sg-580fd-default-rtdb.asia-southeast1.firebasedatabase.app',
+  projectId: 'game-sg-580fd',
+  storageBucket: 'game-sg-580fd.firebasestorage.app',
+  messagingSenderId: '7440163515',
+  appId: '1:7440163515:web:e983f944ff6cd185643f9e',
 }
 
-export const hasFirebaseConfig = Boolean(
-  firebaseConfig.apiKey && firebaseConfig.databaseURL && firebaseConfig.projectId,
-)
+const firebaseConfig = {
+  apiKey: env.VITE_FIREBASE_API_KEY || DEFAULT_FIREBASE.apiKey,
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || DEFAULT_FIREBASE.authDomain,
+  databaseURL: env.VITE_FIREBASE_DATABASE_URL || DEFAULT_FIREBASE.databaseURL,
+  projectId: env.VITE_FIREBASE_PROJECT_ID || DEFAULT_FIREBASE.projectId,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || DEFAULT_FIREBASE.storageBucket,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || DEFAULT_FIREBASE.messagingSenderId,
+  appId: env.VITE_FIREBASE_APP_ID || DEFAULT_FIREBASE.appId,
+}
+
+/** Set VITE_LOCAL_MODE=1 kalau mau latihan tanpa menyentuh database sama sekali. */
+const forceLocal = env.VITE_LOCAL_MODE === '1' || env.VITE_LOCAL_MODE === 'true'
+
+export const hasFirebaseConfig =
+  !forceLocal &&
+  Boolean(firebaseConfig.apiKey && firebaseConfig.databaseURL && firebaseConfig.projectId)
 
 /* ------------------------------------------------------------------ */
 /* Driver lokal                                                        */

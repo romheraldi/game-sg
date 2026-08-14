@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Shell, EmptyState } from '../components/Shell'
 import { useRoom, useTvMode } from '../lib/useRoom'
-import { GAME_BY_ID } from '../lib/games'
+import { gameSummary } from '../lib/games'
 import {
   championOf,
   nextPendingMatch,
@@ -10,6 +10,7 @@ import {
   readRounds,
   sortedGroups,
   type ResolvedMatch,
+  type ResolvedRound,
 } from '../lib/bracket'
 import {
   addExtra,
@@ -17,7 +18,6 @@ import {
   assignSlot,
   clearBracket,
   createBracket,
-  ensureExtras,
   gameParticipants,
   removeExtra,
   removeSlot,
@@ -25,37 +25,25 @@ import {
   setGameParticipants,
   setWinner,
 } from '../lib/actions'
-import type { BracketMode } from '../lib/types'
+import type { BracketMode, Game } from '../lib/types'
 
-export default function GamePage({ gameId }: { gameId: string }) {
-  const game = GAME_BY_ID[gameId]
+export default function BracketPage({ game }: { game: Game }) {
   const { state } = useRoom()
   const [tv] = useTvMode()
 
-  const bracket = state?.games?.[gameId]?.bracket ?? null
+  const bracket = game.bracket ?? null
   const rounds = useMemo(() => readRounds(bracket), [bracket])
-  const participants = gameParticipants(state, gameId)
+  const participants = gameParticipants(state, game.id)
   const champion = championOf(rounds)
-  const nameOf = (id: string | null | undefined) => participantName(state, gameId, id)
+  const nameOf = (id: string | null | undefined) => participantName(state, game.id, id)
 
-  const focusId = state?.games?.[gameId]?.focus ?? null
   const focusMatch =
-    rounds.flatMap((r) => r.matches).find((m) => m.id === focusId) ?? nextPendingMatch(rounds)
-
-  const loaded = state !== null
-  useEffect(() => {
-    if (loaded) ensureExtras(game, state)
-    // Cukup sekali per lomba begitu data ruangan masuk; ensureExtras sendiri
-    // yang menjaga agar peserta bawaan tidak dibuat ulang.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId, loaded])
-
-  if (!game) return null
+    rounds.flatMap((r) => r.matches).find((m) => m.id === game.focus) ?? nextPendingMatch(rounds)
 
   if (!bracket) {
     return (
-      <Shell title={game.name} subtitle={game.note} emoji={game.emoji}>
-        <BracketSetup gameId={gameId} />
+      <Shell title={game.name} subtitle={gameSummary(game)} emoji={game.emoji}>
+        <BracketSetup game={game} />
       </Shell>
     )
   }
@@ -70,7 +58,7 @@ export default function GamePage({ gameId }: { gameId: string }) {
           <button
             className="btn danger"
             onClick={() => {
-              if (confirm('Hapus bagan dan susun ulang dari awal?')) clearBracket(gameId)
+              if (confirm('Hapus bagan dan susun ulang dari awal?')) clearBracket(game.id)
             }}
           >
             Buat Ulang Bagan
@@ -89,7 +77,13 @@ export default function GamePage({ gameId }: { gameId: string }) {
         </div>
       ) : (
         focusMatch && (
-          <NowPlaying match={focusMatch} rounds={rounds} nameOf={nameOf} gameId={gameId} tv={tv} />
+          <NowPlaying
+            match={focusMatch}
+            rounds={rounds}
+            nameOf={nameOf}
+            gameId={game.id}
+            tv={tv}
+          />
         )
       )}
 
@@ -100,7 +94,7 @@ export default function GamePage({ gameId }: { gameId: string }) {
             {round.matches.map((match) => (
               <MatchCard
                 key={match.id}
-                gameId={gameId}
+                gameId={game.id}
                 match={match}
                 usedInRound={round.matches
                   .filter((m) => m.id !== match.id)
@@ -128,7 +122,7 @@ function NowPlaying({
   tv,
 }: {
   match: ResolvedMatch
-  rounds: ReturnType<typeof readRounds>
+  rounds: ResolvedRound[]
   nameOf: (id: string | null | undefined) => string
   gameId: string
   tv: boolean
@@ -159,7 +153,9 @@ function NowPlaying({
             <button
               key={slot.key}
               className="btn primary"
-              onClick={() => setWinner(gameId, match.roundIndex, match.matchIndex, slot.participantId)}
+              onClick={() =>
+                setWinner(gameId, match.roundIndex, match.matchIndex, slot.participantId)
+              }
             >
               🏅 {nameOf(slot.participantId)} Menang
             </button>
@@ -209,7 +205,9 @@ function MatchCard({
               {slot.participantId && !isWinner && (
                 <button
                   className="btn tiny primary"
-                  onClick={() => setWinner(gameId, match.roundIndex, match.matchIndex, slot.participantId)}
+                  onClick={() =>
+                    setWinner(gameId, match.roundIndex, match.matchIndex, slot.participantId)
+                  }
                 >
                   Menang
                 </button>
@@ -218,7 +216,13 @@ function MatchCard({
                 className="slot-select"
                 value={slot.participantId ?? ''}
                 onChange={(e) =>
-                  assignSlot(gameId, match.roundIndex, match.matchIndex, slot.key, e.target.value || null)
+                  assignSlot(
+                    gameId,
+                    match.roundIndex,
+                    match.matchIndex,
+                    slot.key,
+                    e.target.value || null,
+                  )
                 }
                 title="Atur peserta di slot ini"
               >
@@ -283,19 +287,18 @@ function MatchCard({
 
 /* ------------------------------------------------------------------ */
 
-function BracketSetup({ gameId }: { gameId: string }) {
-  const game = GAME_BY_ID[gameId]
+function BracketSetup({ game }: { game: Game }) {
   const { state } = useRoom()
   const groups = sortedGroups(state)
-  const extras = Object.values(state?.games?.[gameId]?.extras ?? {})
+  const extras = Object.values(game.extras ?? {})
   const [selected, setSelected] = useState<string[] | null>(null)
-  const [matchSize, setMatchSize] = useState(game.defaultMatchSize)
-  const [mode, setMode] = useState<BracketMode>(game.defaultMode)
+  const [matchSize, setMatchSize] = useState(game.matchSize ?? 2)
+  const [mode, setMode] = useState<BracketMode>(game.mode ?? 'random')
   const [extraName, setExtraName] = useState('')
 
   const all = [...groups.map((g) => g.id), ...extras.map((e) => e.id)]
   const picked = selected ?? all
-  const nameOf = (id: string) => participantName(state, gameId, id)
+  const nameOf = (id: string) => participantName(state, game.id, id)
 
   if (!groups.length) {
     return (
@@ -304,7 +307,7 @@ function BracketSetup({ gameId }: { gameId: string }) {
         hint="Daftarkan kelompoknya dulu di halaman setting."
         action={
           <Link className="btn primary" to="/setup">
-            Ke Setting Kelompok
+            Ke Setting Acara
           </Link>
         }
       />
@@ -317,7 +320,10 @@ function BracketSetup({ gameId }: { gameId: string }) {
   return (
     <div className="panel setup-panel">
       <h2>Susun Bagan</h2>
-      <p className="hint">{game.note}</p>
+      <p className="hint">
+        Bagan dibuat otomatis sampai tersisa satu pemenang, mengikuti jumlah peserta dan jumlah
+        kelompok per match di bawah.
+      </p>
 
       <h3>Peserta ({picked.length})</h3>
       <div className="checklist">
@@ -331,7 +337,7 @@ function BracketSetup({ gameId }: { gameId: string }) {
                 className="btn tiny ghost"
                 onClick={(e) => {
                   e.preventDefault()
-                  removeExtra(gameId, id, picked)
+                  removeExtra(game.id, id, picked)
                   setSelected(picked.filter((p) => p !== id))
                 }}
               >
@@ -353,7 +359,7 @@ function BracketSetup({ gameId }: { gameId: string }) {
           className="btn"
           disabled={!extraName.trim()}
           onClick={async () => {
-            await addExtra(gameId, extraName.trim())
+            await addExtra(game.id, extraName.trim())
             setExtraName('')
             setSelected(null)
           }}
@@ -369,6 +375,8 @@ function BracketSetup({ gameId }: { gameId: string }) {
             <option value={2}>2 kelompok (head to head)</option>
             <option value={3}>3 kelompok sekaligus</option>
             <option value={4}>4 kelompok sekaligus</option>
+            <option value={5}>5 kelompok sekaligus</option>
+            <option value={6}>6 kelompok sekaligus</option>
           </select>
         </label>
         <label className="field">
@@ -384,16 +392,15 @@ function BracketSetup({ gameId }: { gameId: string }) {
         className="btn primary big top-space"
         disabled={picked.length < 2}
         onClick={async () => {
-          await setGameParticipants(gameId, picked)
-          await createBracket(gameId, picked, matchSize, mode)
+          await setGameParticipants(game.id, picked)
+          await createBracket(game.id, picked, matchSize, mode)
         }}
       >
         {mode === 'random' ? '🎲 Undi & Buat Bagan' : 'Buat Bagan Kosong'}
       </button>
       <p className="hint">
-        Bagan dibuat sampai tersisa satu pemenang. Kalau jumlah peserta tidak pas, sisanya otomatis
-        dapat <strong>bye</strong> ke babak berikutnya. Slot mana pun tetap bisa diubah manual
-        setelah bagan jadi.
+        Kalau jumlah peserta tidak pas dibagi, sisanya otomatis dapat <strong>bye</strong> ke babak
+        berikutnya. Slot mana pun tetap bisa diubah manual setelah bagan jadi.
       </p>
     </div>
   )
