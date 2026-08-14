@@ -7,6 +7,8 @@ bisa kolaborasi dari HP masing-masing sementara TV ikut berubah otomatis.
 Daftar lombanya tidak dikunci di dalam kode — semuanya dibuat sendiri lewat halaman setting,
 jadi aplikasi yang sama bisa dipakai lagi untuk acara-acara berikutnya.
 
+**Live: https://papan-lomba-17an.vercel.app**
+
 ## Halaman
 
 | Halaman | Alamat | Isi |
@@ -140,9 +142,17 @@ disimpan di browser dan tetap sinkron antar tab di satu perangkat.
 
 ## Deploy
 
-Hasil `npm run build` adalah situs statis biasa, jadi bisa ditaruh di Vercel, Netlify, Firebase
-Hosting, atau GitHub Pages. Routing memakai hash (`#/g/kerupuk`) sehingga tidak perlu konfigurasi
-rewrite di server. Jangan lupa mengisi variabel `VITE_FIREBASE_*` di setelan environment
-penyedia hosting sebelum build.
+Sudah live di **https://papan-lomba-17an.vercel.app** (project Vercel `papan-lomba-17an`,
+target production, Vercel Authentication dimatikan supaya bisa dibuka panitia tanpa login).
+
+Deployment pertama diunggah langsung dari file, **belum tersambung ke repo GitHub**, jadi
+`git push` tidak otomatis men-deploy ulang. Untuk mengaktifkan deploy otomatis, hubungkan
+repo `romheraldi/game-sg` di dashboard Vercel (*Project → Settings → Git*) dan pastikan
+branch produksinya berisi kode terbaru.
+
+Hasil `npm run build` adalah situs statis biasa, jadi bisa juga ditaruh di Netlify, Firebase
+Hosting, atau GitHub Pages. Routing memakai hash (`#/g/kerupuk`) sehingga tidak perlu
+konfigurasi rewrite di server. Kalau memakai project Firebase lain, isi variabel
+`VITE_FIREBASE_*` di setelan environment penyedia hosting sebelum build.
 
 Sebelum acara, buka halaman lomba di TV lalu aktifkan **Mode TV** dan fullscreen browser (`F11`).
