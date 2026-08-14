@@ -722,6 +722,11 @@ select option {
   font-weight: 700;
 }
 
+.tag.pin {
+  background: rgba(46, 196, 182, 0.2);
+  color: var(--green);
+}
+
 .slot {
   display: flex;
   align-items: center;

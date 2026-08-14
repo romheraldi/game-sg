@@ -57,8 +57,10 @@ diatur panitia, plus peserta tambahan "Panitia" sehingga total 10 peserta).
    pakai remote presenter.
 3. **Lomba sistem gugur** → pilih peserta lalu klik *Undi & Buat Bagan*. Saat lomba berjalan,
    klik tombol **Menang** pada kelompok pemenang; kelompok itu otomatis masuk ke match babak
-   berikutnya. Banner besar di atas selalu menunjukkan match yang sedang berjalan, dan tombol
-   *Sorot di TV* dipakai kalau mau menentukan sendiri match mana yang ditampilkan.
+   berikutnya. Banner besar di atas otomatis mengikuti match pertama yang belum ada pemenangnya.
+   Kalau mau menentukan sendiri, klik *Sorot di TV* pada match yang diinginkan — kartunya
+   ditandai **DISOROT**, dan tombolnya berubah jadi *Batal sorot* untuk mengembalikan banner ke
+   mode otomatis. Tombol *Batal Sorot* juga tersedia di panel kontrol bawah.
 4. **Mode TV** → tombol di pojok kanan atas. Semua tombol panitia disembunyikan dan tulisan
    diperbesar. Setelan ini per perangkat, jadi TV bisa mode TV sementara HP panitia tetap mode
    panitia.

@@ -37,8 +37,9 @@ export default function BracketPage({ game }: { game: Game }) {
   const champion = championOf(rounds)
   const nameOf = (id: string | null | undefined) => participantName(state, game.id, id)
 
-  const focusMatch =
-    rounds.flatMap((r) => r.matches).find((m) => m.id === game.focus) ?? nextPendingMatch(rounds)
+  // Sorotan manual menang atas pilihan otomatis; kalau tidak ada, ikut match yang belum selesai.
+  const pinnedMatch = rounds.flatMap((r) => r.matches).find((m) => m.id === game.focus) ?? null
+  const focusMatch = pinnedMatch ?? nextPendingMatch(rounds)
 
   if (!bracket) {
     return (
@@ -55,6 +56,11 @@ export default function BracketPage({ game }: { game: Game }) {
       emoji={game.emoji}
       controls={
         <div className="row gap wrap">
+          {pinnedMatch && (
+            <button className="btn" onClick={() => setFocus(game.id, null)}>
+              ✕ Batal Sorot ({pinnedMatch.label})
+            </button>
+          )}
           <button
             className="btn danger"
             onClick={() => {
@@ -66,6 +72,9 @@ export default function BracketPage({ game }: { game: Game }) {
           <span className="hint">
             Klik nama peserta lalu tombol <strong>Menang</strong> untuk meloloskan ke babak
             berikutnya. Pemenang otomatis masuk ke match selanjutnya.
+            {pinnedMatch
+              ? ' Sorotan sedang dikunci manual — batalkan supaya kembali mengikuti match berjalan.'
+              : ''}
           </span>
         </div>
       }
@@ -103,6 +112,7 @@ export default function BracketPage({ game }: { game: Game }) {
                 participants={participants}
                 nameOf={nameOf}
                 focused={focusMatch?.id === match.id}
+                pinned={pinnedMatch?.id === match.id}
               />
             ))}
           </div>
@@ -173,6 +183,7 @@ function MatchCard({
   usedInRound,
   nameOf,
   focused,
+  pinned,
 }: {
   gameId: string
   match: ResolvedMatch
@@ -180,6 +191,8 @@ function MatchCard({
   usedInRound: string[]
   nameOf: (id: string | null | undefined) => string
   focused: boolean
+  /** Disorot manual lewat tombol, bukan karena kebetulan match berjalan. */
+  pinned: boolean
 }) {
   const filled = match.slots.filter((s) => s.participantId)
 
@@ -187,7 +200,10 @@ function MatchCard({
     <div className={`match ${focused ? 'focused' : ''} ${match.winner ? 'settled' : ''}`}>
       <div className="match-head">
         <span>{match.label}</span>
-        {match.isBye && <span className="tag">BYE</span>}
+        <span className="row gap">
+          {pinned && <span className="tag pin">DISOROT</span>}
+          {match.isBye && <span className="tag">BYE</span>}
+        </span>
       </div>
 
       {match.slots.map((slot) => {
@@ -277,9 +293,15 @@ function MatchCard({
         >
           + Slot
         </button>
-        <button className="btn tiny ghost" onClick={() => setFocus(gameId, match.id)}>
-          Sorot di TV
-        </button>
+        {pinned ? (
+          <button className="btn tiny primary" onClick={() => setFocus(gameId, null)}>
+            ✕ Batal sorot
+          </button>
+        ) : (
+          <button className="btn tiny ghost" onClick={() => setFocus(gameId, match.id)}>
+            Sorot di TV
+          </button>
+        )}
       </div>
     </div>
   )
