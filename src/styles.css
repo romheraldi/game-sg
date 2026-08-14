@@ -842,6 +842,90 @@ select option {
   accent-color: var(--red);
 }
 
+/* ------------------------------ layar juara ---------------------------- */
+
+.winner-list {
+  display: grid;
+  gap: 14px;
+}
+
+.winner-card {
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 2vw, 28px);
+  padding: clamp(16px, 2.5vh, 28px) clamp(18px, 2.5vw, 32px);
+  border-radius: 22px;
+  border: 1px solid rgba(255, 209, 102, 0.5);
+  background: linear-gradient(120deg, rgba(255, 209, 102, 0.16), rgba(230, 57, 70, 0.1));
+}
+
+.winner-card.roster {
+  border-color: var(--line);
+  background: var(--card);
+}
+
+.winner-emoji {
+  font-size: calc(clamp(32px, 4vw, 52px) * var(--scale));
+  line-height: 1;
+  flex: none;
+}
+
+.winner-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.winner-game {
+  color: var(--muted);
+  font-size: calc(clamp(13px, 1.3vw, 17px) * var(--scale));
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.winner-name {
+  font-size: calc(clamp(28px, 4vw, 58px) * var(--scale));
+  font-weight: 900;
+  line-height: 1.1;
+  margin-top: 4px;
+  word-break: break-word;
+}
+
+.winner-medal {
+  font-size: calc(clamp(26px, 3vw, 44px) * var(--scale));
+  flex: none;
+}
+
+.performed {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.performed-chip {
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: calc(clamp(15px, 1.6vw, 22px) * var(--scale));
+  font-weight: 700;
+}
+
+.champion-wait {
+  text-align: center;
+  padding: clamp(40px, 10vh, 90px) 20px;
+  border: 1px dashed var(--line);
+  border-radius: 26px;
+}
+
+.champion-wait-text {
+  margin-top: 12px;
+  font-size: calc(clamp(24px, 3vw, 40px) * var(--scale));
+  font-weight: 800;
+  color: var(--muted);
+}
+
 /* -------------------------------- rekap -------------------------------- */
 
 .recap-grid {
