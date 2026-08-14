@@ -119,7 +119,8 @@ export default function UrutanPage({ game }: { game: Game }) {
         )}
       </div>
 
-      <ol className="order-list">
+      {/* Di mode TV cukup panel besar di atas; daftar lengkapnya untuk panitia. */}
+      <ol className="order-list admin-only">
         {order.map((id, index) => (
           <li
             key={id}

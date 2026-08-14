@@ -533,6 +533,14 @@ select option {
   margin-bottom: 26px;
 }
 
+/* Tanpa daftar di bawahnya, panggung boleh memenuhi layar TV. */
+body.tv-mode .stage {
+  min-height: 72vh;
+  display: grid;
+  align-content: center;
+  margin-bottom: 0;
+}
+
 .stage-label {
   letter-spacing: 6px;
   font-size: calc(14px * var(--scale));
